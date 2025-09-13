@@ -1,0 +1,6 @@
+datetime,agent,seed,steps,score,cargo,deliveries,active_goals,delayed_goals,sticky_target
+2025-09-13 15:02:29,smart,5,173,29,0,6,0,0,False
+2025-09-13 15:03:05,default,5,153,98,0,6,0,0,False
+2025-09-13 15:03:27,greedy,5,153,98,0,6,0,0,False
+2025-09-13 15:03:52,deadline,5,145,119,0,6,0,0,False
+2025-09-13 15:06:00,smart,10,190,-6,0,6,0,0,False
