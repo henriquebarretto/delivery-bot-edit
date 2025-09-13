@@ -1,54 +1,84 @@
 from main import Maze, build_agent_kwargs
+import pandas as pd
 
 # Configurações do benchmark
 seeds = [2, 5, 10, 15, 16, 30, 150]
-
 agents = ["default", "greedy", "deadline", "smart"]
 
 # combinações pro agent smart
 smart_settings = [
-    (1, 7),  # max_carry = 1, urgent_threshold = 7
-    (2, 7),  # max_carry = 1, urgent_threshold = 7
-    (3, 7),  # max_carry = 1, urgent_threshold = 7
-    (1, 10),  # max_carry = 1, urgent_threshold = 10
-    (2, 10),  # max_carry = 2, urgent_threshold = 10
-    (3, 10),  # max_carry = 2, urgent_threshold = 10
-    (1, 15),  # max_carry = 1, urgent_threshold = 15
-    (2, 15),  # max_carry = 2, urgent_threshold = 15
-    (3, 15),  # max_carry = 2, urgent_threshold = 15
+    (1, 7),
+    (2, 7),
+    (3, 7),
+    (1, 10),
+    (2, 10),
+    (3, 10),
+    (1, 15),
+    (2, 15),
+    (3, 15),
 ]
-# combinações pro agente deadline (apenas o threshold)
-deadline_settings=[7, 10, 15]
+
+# combinações pro deadline
+deadline_settings = [7, 10, 15]
 
 sticky_options = [False, True]
+
+# número de repetições para cada configuração
+num_runs = 1
+
+# Arquivo de saída com resultados brutos
+results_file = "resultados.csv"
 
 # Loop principal
 for seed in seeds:
     for sticky in sticky_options:
         for agent in agents:
             if agent == "smart":
-                # Smart -> precisa de max_carry e urgent_threshold
                 for max_carry, urgent_threshold in smart_settings:
-                    print(f"\n>>> seed={seed}, agent={agent}, carry={max_carry}, urg={urgent_threshold}, sticky={sticky}")
-                    agent_kwargs = build_agent_kwargs(agent, max_carry=max_carry, urgent_threshold=urgent_threshold)
-                    maze = Maze(seed=seed, agent=agent, delay_ms=0,
-                                agent_kwargs=agent_kwargs, sticky_target=sticky)
-                    maze.game_loop()
+                    for run in range(num_runs):
+                        print(f"\n>>> seed={seed}, agent={agent}, carry={max_carry}, urg={urgent_threshold}, "
+                              f"sticky={sticky}, run={run+1}/{num_runs}")
+                        agent_kwargs = build_agent_kwargs(agent, max_carry=max_carry, urgent_threshold=urgent_threshold)
+                        maze = Maze(seed=seed, agent=agent, delay_ms=0,
+                                    agent_kwargs=agent_kwargs, sticky_target=sticky)
+                        maze.game_loop()
 
             elif agent == "deadline":
-                # Deadline -> só precisa de urgent_threshold
                 for urgent_threshold in deadline_settings:
-                    print(f"\n>>> seed={seed}, agent={agent}, urg={urgent_threshold}, sticky={sticky}")
-                    agent_kwargs = build_agent_kwargs(agent, max_carry=None, urgent_threshold=urgent_threshold)
+                    for run in range(num_runs):
+                        print(f"\n>>> seed={seed}, agent={agent}, urg={urgent_threshold}, "
+                              f"sticky={sticky}, run={run+1}/{num_runs}")
+                        agent_kwargs = build_agent_kwargs(agent, max_carry=None, urgent_threshold=urgent_threshold)
+                        maze = Maze(seed=seed, agent=agent, delay_ms=0,
+                                    agent_kwargs=agent_kwargs, sticky_target=sticky)
+                        maze.game_loop()
+
+            else:
+                for run in range(num_runs):
+                    print(f"\n>>> seed={seed}, agent={agent}, sticky={sticky}, run={run+1}/{num_runs}")
+                    agent_kwargs = build_agent_kwargs(agent, max_carry=None, urgent_threshold=None)
                     maze = Maze(seed=seed, agent=agent, delay_ms=0,
                                 agent_kwargs=agent_kwargs, sticky_target=sticky)
                     maze.game_loop()
 
-            else:
-                # Default e Greedy -> sem parâmetros extras
-                print(f"\n>>> seed={seed}, agent={agent}, sticky={sticky}")
-                agent_kwargs = build_agent_kwargs(agent, max_carry=None, urgent_threshold=None)
-                maze = Maze(seed=seed, agent=agent, delay_ms=0,
-                            agent_kwargs=agent_kwargs, sticky_target=sticky)
-                maze.game_loop()
+# ========================================
+# Resumo estatístico (média e desvio)
+# ========================================
+df = pd.read_csv(results_file)
 
+# garantir que colunas existam
+if "max_carry" not in df.columns:
+    df["max_carry"] = None
+if "urgent_threshold" not in df.columns:
+    df["urgent_threshold"] = None
+
+summary = (
+    df.groupby(["agent", "seed", "sticky_target", "max_carry", "urgent_threshold"])
+      .agg(score_mean=("score", "mean"), score_std=("score", "std"),
+           steps_mean=("steps", "mean"), steps_std=("steps", "std"),
+           deliveries_mean=("deliveries", "mean"))
+      .reset_index()
+)
+
+summary.to_csv("summary.csv", index=False)
+print("\nResumo salvo em summary.csv")

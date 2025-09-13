@@ -385,8 +385,14 @@ Evita ações muito ruins (valor muito negativo).
 # ==========================
 class World:
     def __init__(self, seed=None, agent_name="default", agent_kwargs=None):
+        # RNG para mapa fixo
         if seed is not None:
             random.seed(seed)
+
+        # RNG separado para spawns dinâmicos (não é resetado pela seed global)
+        import time
+        self.rng = random.Random(time.time())
+
         agent_kwargs = agent_kwargs or {}
 
         self.maze_size = 30
@@ -484,7 +490,7 @@ class World:
 
     def add_goal(self, created_at_step: int):
         pos = self.random_free_cell()
-        priority = random.randint(40, 110)
+        priority = self.rng.randint(40, 110)
         self.goals.append({"pos": pos, "priority": priority, "created_at": created_at_step})
 
     def can_move_to(self, pos: List[int]) -> bool:
@@ -553,10 +559,11 @@ class Maze:
 
         # Agenda de novos spawns para totalizar 6 metas
         self.spawn_intervals = (
-            [random.randint(2, 5)] +
-            [random.randint(5, 10)] +
-            [random.randint(10, 15) for _ in range(3)]
+            [self.world.rng.randint(2, 5)] +
+            [self.world.rng.randint(5, 10)] +
+            [self.world.rng.randint(10, 15) for _ in range(3)]
         )
+
         self.next_spawn_step = self.spawn_intervals.pop(0)
 
         # Alvo corrente
