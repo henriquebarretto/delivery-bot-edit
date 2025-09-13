@@ -24,7 +24,7 @@ deadline_settings = [7, 10, 15]
 sticky_options = [False, True]
 
 # número de repetições para cada configuração
-num_runs = 1
+num_runs = 5
 
 # Arquivo de saída com resultados brutos
 results_file = "resultados.csv"
