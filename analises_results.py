@@ -1,5 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
+
+# Criar pasta de saída
+output_dir = "analysis"
+os.makedirs(output_dir, exist_ok=True)
 
 # Carregar os resultados
 df = pd.read_csv("resultados.csv")
@@ -23,8 +28,8 @@ plt.xticks(rotation=0)
 ax.bar_label(ax.containers[0], fmt="%.1f")
 
 plt.tight_layout()
-plt.savefig("1score_medio_por_agente.png")
-plt.show()
+plt.savefig(os.path.join(output_dir, "1score_medio_por_agente.png"))
+plt.close()
 
 # ==============================
 # 2) Score médio por agente e seed
@@ -43,8 +48,8 @@ for container in ax.containers:
     ax.bar_label(container, fmt="%.1f")
 
 plt.tight_layout()
-plt.savefig("2score_por_seed.png")
-plt.show()
+plt.savefig(os.path.join(output_dir, "2score_por_seed.png"))
+plt.close()
 
 # ==============================
 # 3) Comparação Sticky vs Non-Sticky
@@ -61,15 +66,14 @@ for container in ax.containers:
     ax.bar_label(container, fmt="%.1f")
 
 plt.tight_layout()
-plt.savefig("3impacto_sticky.png")
-plt.show()
+plt.savefig(os.path.join(output_dir, "3impacto_sticky.png"))
+plt.close()
 
 # ==============================
 # 4) Smart: tuning de parâmetros
 # ==============================
 smart_df = df[df["agent"]=="smart"].copy()
 if not smart_df.empty:
-    # Agrupamento já está correto
     scores = smart_df.groupby(["max_carry","urgent_threshold"])["score"].mean()
 
     plt.figure(figsize=(10,6))
@@ -83,7 +87,7 @@ if not smart_df.empty:
     ax.bar_label(ax.containers[0], fmt="%.1f")
 
     plt.tight_layout()
-    plt.savefig("4smart_param_tuning.png")
-    plt.show()
+    plt.savefig(os.path.join(output_dir, "4smart_param_tuning.png"))
+    plt.close()
 
-print("->> Gráficos gerados com rótulos: score_medio_por_agente.png, score_por_seed.png, impacto_sticky.png, smart_param_tuning.png")
+print("->> Gráficos gerados e salvos na pasta 'analysis'")
