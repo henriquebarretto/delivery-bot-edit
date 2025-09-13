@@ -324,8 +324,8 @@ class Maze:
         self.sticky_target = sticky_target
         self.agent_name = agent
         self.seed = str(seed)
-        self.max_carry = max_carry
-        self.urgent_threshold = urgent_threshold
+        self.max_carry = agent_kwargs.get("max_carry") if agent_kwargs else None
+        self.urgent_threshold = agent_kwargs.get("urgent_threshold") if agent_kwargs else None
 
         # Spawn inicial de metas: 1 meta no passo 0 (alinhado com o código do professor)
         self.world.add_goal(created_at_step=0)
