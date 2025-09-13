@@ -4,3 +4,6 @@ datetime,agent,seed,steps,score,cargo,deliveries,active_goals,delayed_goals,stic
 2025-09-13 15:03:27,greedy,5,153,98,0,6,0,0,False
 2025-09-13 15:03:52,deadline,5,145,119,0,6,0,0,False
 2025-09-13 15:06:00,smart,10,190,-6,0,6,0,0,False
+2025-09-13 17:15:41,default,10,164,93,0,6,0,0,False
+2025-09-13 17:20:11,greedy,10,164,93,0,6,0,0,False
+2025-09-13 17:20:41,deadline,10,172,68,0,6,0,0,False
