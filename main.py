@@ -128,11 +128,20 @@ class SmartBatchPlayer(BasePlayer):
             return g['priority'] - (current_steps - g['created_at'])
 
         urgent_goals = [g for g in world.goals if remaining(g) <= self.urgent_threshold
-                        and tuple(g['pos']) not in avoid_positions]
+                and tuple(g['pos']) not in avoid_positions]
 
-        if urgent_goals and self.cargo > 0:
-            g = min(urgent_goals, key=lambda g: (remaining(g), manhattan(g['pos'], [sx, sy])))
-            return g['pos']
+        # Se houver metas urgentes, sempre prioriza entregar (mesmo sem carga)
+        if urgent_goals:
+            if self.cargo > 0:
+                g = min(urgent_goals, key=lambda g: (remaining(g), manhattan(g['pos'], [sx, sy])))
+                return g['pos']
+            else:
+                # vai direto buscar pacote mais próximo do goal urgente
+                g = min(urgent_goals, key=lambda g: remaining(g))
+                return min(world.packages, key=lambda p: manhattan(p, g['pos']))
+        ''' antes o smart coletava pacore mesmo se ja tivesse goals urgentes agr se tiver
+        um goal urgente ele vai ignorar pegar mais ate entregar'''
+
 
         if self.cargo < self.max_carry and world.packages and not urgent_goals:
             candidates = [p for p in world.packages if tuple(p) not in avoid_positions]
@@ -315,6 +324,8 @@ class Maze:
         self.sticky_target = sticky_target
         self.agent_name = agent
         self.seed = str(seed)
+        self.max_carry = max_carry
+        self.urgent_threshold = urgent_threshold
 
         # Spawn inicial de metas: 1 meta no passo 0 (alinhado com o código do professor)
         self.world.add_goal(created_at_step=0)
@@ -354,7 +365,9 @@ class Maze:
             "deliveries": self.num_deliveries,
             "active_goals": len(self.world.goals),
             "delayed_goals": delayed_count,
-            "sticky_target": self.sticky_target
+            "sticky_target": self.sticky_target,
+            "max_carry": self.max_carry,
+            "urgent_threshold": self.urgent_threshold
     })
 
     # Salvamento do history
@@ -589,11 +602,11 @@ class Maze:
 # PONTO DE ENTRADA PRINCIPAL
 # ==========================
 
-def build_agent_kwargs(agent: str, args: argparse.Namespace) -> dict:
+def build_agent_kwargs(agent: str, max_carry: int, urgent_threshold: int) -> dict:
     if agent == 'deadline':
-        return {'urgent_threshold': args.urgent_threshold}
+        return {'urgent_threshold': urgent_threshold}
     if agent == 'smart':
-        return {'max_carry': args.max_carry, 'urgent_threshold': args.urgent_threshold}
+        return {'max_carry': max_carry, 'urgent_threshold': urgent_threshold}
     return {}
 
 from menu import Menu
@@ -603,12 +616,16 @@ if __name__ == "__main__":
     menu = Menu()
     config = menu.loop()  # usuário escolhe no menu
 
-    agent_kwargs = build_agent_kwargs(config["agent"], argparse.Namespace(
-        urgent_threshold=config["urgent_threshold"],
-        max_carry=config["max_carry"]
-    ))
+    agent = config["agent"]
+    max_carry = config["max_carry"]
+    urgent_threshold = config["urgent_threshold"]
 
-    maze = Maze(seed=config["seed"], agent=config["agent"],
+    # monta kwargs do agente de acordo com o tipo
+    agent_kwargs = build_agent_kwargs(agent, max_carry, urgent_threshold)
+
+    print(f"[DEBUG] Agent: {agent}, max_carry={max_carry}, urgent_threshold={urgent_threshold}")
+
+    maze = Maze(seed=config["seed"], agent=agent,
                 delay_ms=60, agent_kwargs=agent_kwargs,
                 sticky_target=config["sticky_target"])
     maze.game_loop()
