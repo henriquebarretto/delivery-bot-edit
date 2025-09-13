@@ -1,19 +1,24 @@
 from main import Maze, build_agent_kwargs
 
 # Configurações do benchmark
-seeds = [5, 10, 15, 32]
+seeds = [2, 5, 10, 15, 16, 30, 150]
 
 agents = ["default", "greedy", "deadline", "smart"]
 
 # combinações pro agent smart
 smart_settings = [
-    (1, 10),  # max_carry=1, urgent_threshold=10
-    (2, 10),  # max_carry=2, urgent_threshold=10
-    (1, 15),  # max_carry=1, urgent_threshold=15
-    (2, 15),  # max_carry=2, urgent_threshold=15
+    (1, 7),  # max_carry = 1, urgent_threshold = 7
+    (2, 7),  # max_carry = 1, urgent_threshold = 7
+    (3, 7),  # max_carry = 1, urgent_threshold = 7
+    (1, 10),  # max_carry = 1, urgent_threshold = 10
+    (2, 10),  # max_carry = 2, urgent_threshold = 10
+    (3, 10),  # max_carry = 2, urgent_threshold = 10
+    (1, 15),  # max_carry = 1, urgent_threshold = 15
+    (2, 15),  # max_carry = 2, urgent_threshold = 15
+    (3, 15),  # max_carry = 2, urgent_threshold = 15
 ]
-# combinações pro agente deadline
-deadline_settings=[5, 10, 15, 20]
+# combinações pro agente deadline (apenas o threshold)
+deadline_settings=[7, 10, 15]
 
 sticky_options = [False, True]
 
