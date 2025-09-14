@@ -427,7 +427,7 @@ class Maze:
         self.max_carry = agent_kwargs.get("max_carry") if agent_kwargs else None
         self.urgent_threshold = agent_kwargs.get("urgent_threshold") if agent_kwargs else None
 
-        # Spawn inicial de metas: começa com 1 meta (como no código do professor)
+        # Spawn inicial de metas: começa com 1 meta
         self.world.add_goal(created_at_step=0)
         self.goal_spawns = 1
 
@@ -729,7 +729,7 @@ if __name__ == "__main__":
     # Prepara kwargs do agente
     agent_kwargs = build_agent_kwargs(agent, max_carry, urgent_threshold)
 
-    print(f"[DEBUG] Agent: {agent}, max_carry={max_carry}, urgent_threshold={urgent_threshold}")
+    #print(f"[DEBUG] Agent: {agent}, max_carry={max_carry}, urgent_threshold={urgent_threshold}")
 
     # Cria o jogo e roda o loop principal
     maze = Maze(seed=config["seed"], agent=agent,

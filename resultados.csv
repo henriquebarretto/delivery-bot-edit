@@ -143,3 +143,4 @@ datetime,agent,seed,steps,score,cargo,deliveries,active_goals,delayed_goals,stic
 2025-09-14 11:57:12,smart,150,171,50,0,6,0,0,True,2,15
 2025-09-14 11:57:14,smart,150,190,-26,0,6,0,0,True,2,15
 2025-09-14 11:57:15,smart,150,171,14,0,6,0,0,True,2,15
+2025-09-14 12:44:04,deadline,5,163,106,0,6,0,0,False,,15
