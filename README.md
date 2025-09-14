@@ -1,150 +1,177 @@
 # Delivery Bot — README
 
-Projeto do DeliveryBot referente a AV1 da disciplina Inteligência Computacional - Universidade Cimatec.
-15/09/2025
+Projeto do **DeliveryBot** referente à **AV1 da disciplina Inteligência Computacional – Universidade Cimatec**  
+**Data de entrega:** 15/09/2025  
 
-Feito por:
-Henrique Sá Barretto de Oliveira e 
-Pedro Martins de Oliveira Menezes
+**Autores:**  
+- Henrique Sá Barretto de Oliveira  
+- Pedro Martins de Oliveira Menezes  
 
-O DeliveryBot é um simulador de agente autônomo ambientado em uma planta industrial. Nele, um robô deve percorrer um mapa em grade, coletando pacotes e entregando-os em pontos de destino que surgem ao longo do tempo. O desempenho do agente é medido por um sistema de pontuação que recompensa entregas rápidas e pune passos desnecessários e atrasos. O projeto permite testar estratégias de busca e navegação, além de comparar diferentes agentes autônomos em cenários com obstáculos, restrições de tempo e múltiplos objetivos, aproximando-se de desafios reais de logística interna e robótica móvel. Você pode modificar a simulação para torná-la mais realista ou complexa.
+---
 
-### 1) Instalar dependências
+## 📦 Sobre o projeto
 
-**Requisitos:**
+O **DeliveryBot** é um simulador de agente autônomo em uma planta industrial.  
+Um robô percorre um **mapa em grade 30x30** com obstáculos, coletando pacotes e entregando-os em pontos de destino (metas) que surgem ao longo do tempo.  
 
-- Python 3.10+
+O desempenho do agente é avaliado por um **sistema de pontuação** que recompensa entregas rápidas e pune passos desnecessários e atrasos.  
 
-Instalar Pygame:
+Este projeto permite:  
+- Testar e comparar **estratégias de busca e navegação**.  
+- Analisar cenários com obstáculos, restrições de tempo e múltiplos objetivos.  
+- Aplicar conceitos de **logística interna** e **robótica móvel** em simulação.  
+
+---
+
+## ⚙️ 1) Instalar dependências
+
+**Requisitos:**  
+- Python 3.10+  
+- Pygame  
+
+Instalação:  
 
 ```bash
 pip install pygame
 ```
 
-### 2) Rodar o simulador
+---
+
+## ▶️ 2) Executar o simulador
+
+O jogo principal é rodado a partir de **main.py**, que já integra o **menu gráfico de configurações** (`menu.py`).
 
 ```bash
-python main.py --agent smart --seed 5 --delay 60
+python main.py
 ```
-** Mais em: Exemplos de execução
 
-### 3) Dicas rápidas de uso
+No menu, escolha:  
+- Agente (default, greedy, deadline, smart)  
+- Seed (fixa aleatoriedade)  
+- Sticky Target (habilita/desabilita)  
+- Parâmetros extras (`max_carry`, `urgent_threshold`)  
 
---agent pode ser default, greedy, deadline ou smart (recomendado).
+---
 
---seed fixa o mundo para repetir o teste (ex.: --seed 5).
+## 💡 3) Dicas rápidas de uso
 
---delay controla a velocidade (ms) entre passos (ex.: --delay 60).
+- `--agent` → escolha entre `default`, `greedy`, `deadline`, `smart`  
+- `--seed` → fixa o mundo para repetir testes (ex.: `--seed 5`)  
+- `--delay` → controla velocidade (ms entre passos)  
+- `--sticky-target` → o robô não replaneja a cada passo (mantém alvo até chegar)  
+- `--max-carry` → (apenas smart) quantos pacotes carregar antes de entregar  
+- `--urgent-threshold` → (deadline/smart) define quando considerar meta “urgente”  
 
---sticky-target faz o robô não replanejar a cada passo (mantém o alvo até chegar).
+*(Esses parâmetros também podem ser configurados pelo menu gráfico)*  
 
-### 4) Entender as regras (score)
+---
 
-- +50 por cada entrega concluída.
+## 🏆 4) Sistema de Pontuação
 
-- –1 por cada passo (custo base).
+- **+50 pontos** por cada entrega concluída.  
+- **–1 ponto** por cada passo dado.  
+- **–1 ponto adicional por passo** para cada meta atrasada  
+  (quando o tempo de vida/priority é ultrapassado).  
 
-- –1 extra por passo por cada entrega atrasada (quando a idade da meta ultrapassa sua prioridade/limite).
+Essas regras já estão **100% implementadas no código**.  
 
-Essas regras estão implementadas no código: a cada passo há custo base e a função de penalidade conta metas atrasadas.
+---
 
-### 5) Como o mapa e metas funcionam
+## 🗺️ 5) Funcionamento do mapa e metas
 
-- Existem 7 pacotes gerados no mapa e 6 pontos de entrega no total (1 pacote a mais que entregas).
+- **7 pacotes** aparecem no mapa no início.  
+- **6 metas** (pontos de entrega) surgem ao longo do tempo.  
+- Cada meta possui uma **priority** (vida útil em passos).  
+- Quando uma meta expira, começa a gerar penalidade.  
+- O robô pode **carregar múltiplos pacotes** (limitado por `max_carry` no smart).  
+- Obstáculos são gerados aleatoriamente (paredes horizontais/verticais + blocos sólidos).  
+- Planejamento de caminho usa **A*** com heurística de **Manhattan**.  
 
-- As metas aparecem ao longo do tempo até totalizar 6 metas.
+---
 
-- O enunciado original sugere metas iniciais e spawns programados; o código gera metas ao longo do jogo para resultar em 6 entregas possíveis.
+## 🤖 6) Agentes implementados
 
-- Os tempos/intervalos são aleatórios por seed; veja Maze.__init__ para ajustar a forma/quantidade inicial de spawns se quiser reproduzir um comportamento diferente (ex.: 1 ou 2 metas no passo 0).
+### DefaultPlayer  
+- Estratégia simples.  
+- Pega pacote mais próximo → entrega na meta mais próxima.  
+- Não considera prazos nem otimização.  
 
-- Se uma meta é removida (entrega concluída), o ponto some do mapa.
+### GreedyBestFirst  
+- Sempre busca o **alvo mais próximo** (pacote ou meta).  
+- Vantagem: rápido, simples.  
+- Desvantagem: ignora urgências → pode perder pontos.  
 
-- Você pode carregar mais de um pacote ao mesmo tempo (alguns agentes, como smart, aproveitam isso).
+### DeadlineAwarePlayer  
+- Considera prazos (`urgent_threshold`).  
+- Priorização de metas com pouco tempo restante.  
+- Evita penalidades pesadas de atrasos.  
 
-### 6) Escolher e comparar agentes
+### SmartBatchPlayer (original do grupo)  
+- Estratégia mais avançada.  
+- Combina capacidade (`max_carry`) + urgência (`urgent_threshold`).  
+- Decide **quando coletar em lote** e **quando entregar já**.  
+- Balanceia ganho líquido de pontos, penalidades e prazos.  
 
-Rode múltiplas vezes (seeds diferentes / sempre a mesma) e faça a analise pelo arquivo csv de resultados gerado.
-#### Tipos de agentes:
+---
 
-DefaultPlayer
+## 🖥️ 7) Exemplos de execução
 
-- **Pega o pacote mais próximo** → entrega na meta mais próxima.
-- Muito simples, não considera urgência nem capacidade.
-- Vai bem em cenários “fáceis” (sem muitos prazos curtos).
-- Sofre quando várias metas expiram rápido.
+Linha de comando:  
 
-GreedyBestFirst (Ganancioso)
+```bash
+python main.py --agent default  --seed 2
+python main.py --agent greedy   --seed 2
+python main.py --agent deadline --seed 2 --urgent-threshold 10
+python main.py --agent smart    --seed 2 --max-carry 2 --urgent-threshold 8 --delay 60
+```
 
-- **Sempre corre para o objeto/meta mais próximo.**
-- Escolhe alvos pelo menor custo/distância (sem considerar prazos).
-- Vantagem: rápido e simples, minimiza distância imediata.
-- Desvantagem: pode ignorar urgências e ser penalizado quando metas expiram.
-- Funciona bem em mapas densos de obstáculos, pois evita caminhos longos.
+Loop automático de comparação (bash):  
 
-DeadlineAwarePlayer
+```bash
+for AG in default greedy deadline smart; do
+  python main.py --agent $AG --seed 3 --delay 40
+done
+```
 
-- Prioriza metas com pouco tempo restante (usando o `urgent_threshold`).
-- Vantagem: evita perder pontos por atrasos.
-- Desvantagem: pode gastar muito tempo indo para metas distantes, deixando pacotes fáceis para trás.
-- Bom quando você quer maximizar entregas dentro do prazo.
+---
 
+## 🔍 8) Scripts extras
 
-SmartBatchPlayer
+Além do simulador principal (`main.py` + `menu.py`), o projeto inclui:  
 
-- Tenta balancear capacidade (`max_carry`) e urgência(`urgent_threshold`).
-- Coleta vários pacotes antes de sair entregando.
-- Vantagem: mais eficiente em cenários com várias metas aparecendo em paralelo.
-- Desvantagem: se o `max_carry` for muito alto ou o `threshold` mal calibrado, pode ficar "ganancioso" e perder prazos.
-- Potencialmente o mais forte, mas precisa de tunagem de parâmetros.
+### `batch_run.py`  
+- Executa múltiplos testes automaticamente.  
+- Varia agentes, seeds e parâmetros.  
+- Salva resultados no CSV `resultados.csv`.  
 
-##### Exemplos de execução:
+### `analises_results.py`  
+- Lê o CSV de resultados.  
+- Faz análises comparativas (ex.: pontuação média, entregas concluídas, penalidades).  
+- Auxilia na elaboração de gráficos e tabelas para o relatório/apresentação.  
 
-    python main.py --agent default  --seed 2
-    
-    python main.py --agent greedy   --seed 2
-    
-    python main.py --agent deadline --seed 2 --urgent-threshold 10
-    
-    python main.py --agent smart    --seed 2 --max-carry 2 --urgent-threshold 8
+---
 
+## ⚙️ 9) Ajustes finos
 
-### 7) Ajustes finos (Opcional)
+- `--sticky-target` → fixa o alvo até alcançá-lo (pode evitar zigue-zague, mas prejudicar urgência).  
+- `--max-carry` → aumenta/diminui a ganância do smart (quantos pacotes carregar antes de entregar).  
+- `--urgent-threshold` → define urgência (quantos passos antes de expirar a meta).  
 
---max-carry (apenas smart): quantos pacotes carregar antes de priorizar entregas.
+---
 
---urgent-threshold (para deadline/smart): quantos passos faltando para considerar uma meta "urgente".
+## 📊 10) Coleta e análise de resultados
 
---sticky-target:
+1. Rodar o simulador várias vezes (diferentes agentes/seeds).  
+2. O jogo salva o resultado final em `resultados.csv`.  
+3. Usar `analises_results.py` para gerar estatísticas comparativas.  
+4. Comparar desempenho dos agentes (eficiência, atrasos, pontuação final).  
 
-O sticky_target é um recurso que controla se o agente deve “grudar” no alvo escolhido até alcançá-lo ou se pode mudar de alvo a cada iteração quando aparece algo mais prioritário (ex: uma entrega prestes a expirar). Então, em quais agentes faz sentido?
+---
 
-- DefaultPlayer:
+## ✅ Observações finais
 
-    Pode usar, mas o efeito é mínimo, ele já persegue sempre o objetivo mais próximo. Sticky só impede de mudar no meio do caminho.
-
-- GreedyBestFirst:
-    
-    Funciona, mesmo raciocínio do default. Ele sempre pega o alvo mais próximo; sticky só “trava” a decisão até chegar.
-
-- DeadlineAwarePlayer:
-    
-    Aqui fica mais interessante: sem sticky ele pode trocar de meta se uma entrega estiver prestes a expirar; com sticky ele vai até o alvo escolhido mesmo que outro mais urgente apareça → isso pode prejudicar, dependendo.
-
-- SmartBatchPlayer:
-    
-    Mesmo caso do deadline. Como ele usa batching e thresholds, o sticky pode atrapalhar a lógica, já que a força dele está justamente em reavaliar constantemente.
-
-### 8) Parâmetros de linha de comando (resumo)
-
-    --agent : default / greedy / deadline / smart
-
-    --seed : int (reprodutibilidade)
-
-    --delay : int (ms entre passos)
-
-    --sticky-target : flag (manter alvo até chegar)
-
-    --max-carry : int (apenas smart)
-
-    --urgent-threshold : int (apenas deadline/smart)
+- O projeto respeita as regras originais do enunciado.  
+- O **SmartBatchPlayer** foi uma criação do grupo (originalidade).  
+- O jogo termina após **todas as 6 entregas concluídas**.  
+- Se imagens (`images/cargo.png`, `images/operator.png`) não existirem, o jogo desenha blocos coloridos (fallback).  
+- Todos os agentes usam **A\*** para planejar caminhos e evitar obstáculos.  
