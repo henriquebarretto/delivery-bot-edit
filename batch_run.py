@@ -2,29 +2,24 @@ from main import Maze, build_agent_kwargs
 import pandas as pd
 
 # Configurações do benchmark
-seeds = [2, 5, 10, 15, 16, 30, 150]
+seeds = [5, 15, 150]
 agents = ["default", "greedy", "deadline", "smart"]
 
 # combinações pro agent smart
 smart_settings = [
-    (1, 7),
-    (2, 7),
-    (3, 7),
     (1, 10),
     (2, 10),
-    (3, 10),
     (1, 15),
     (2, 15),
-    (3, 15),
 ]
 
 # combinações pro deadline
-deadline_settings = [7, 10, 15]
+deadline_settings = [10, 15]
 
 sticky_options = [False, True]
 
 # número de repetições para cada configuração
-num_runs = 5
+num_runs = 3
 
 # Arquivo de saída com resultados brutos
 results_file = "resultados.csv"
@@ -60,25 +55,3 @@ for seed in seeds:
                     maze = Maze(seed=seed, agent=agent, delay_ms=0,
                                 agent_kwargs=agent_kwargs, sticky_target=sticky)
                     maze.game_loop()
-
-# ========================================
-# Resumo estatístico (média e desvio)
-# ========================================
-df = pd.read_csv(results_file)
-
-# garantir que colunas existam
-if "max_carry" not in df.columns:
-    df["max_carry"] = None
-if "urgent_threshold" not in df.columns:
-    df["urgent_threshold"] = None
-
-summary = (
-    df.groupby(["agent", "seed", "sticky_target", "max_carry", "urgent_threshold"])
-      .agg(score_mean=("score", "mean"), score_std=("score", "std"),
-           steps_mean=("steps", "mean"), steps_std=("steps", "std"),
-           deliveries_mean=("deliveries", "mean"))
-      .reset_index()
-)
-
-summary.to_csv("summary.csv", index=False)
-print("\nResumo salvo em summary.csv")

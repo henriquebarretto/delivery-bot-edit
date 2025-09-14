@@ -90,10 +90,9 @@ class DeadlineAwarePlayer(BasePlayer):
     def escolher_alvo(self, world, current_steps, avoid_positions=None):
         """
         Estratégia:
-        - Se estiver com carga: escolher meta que minimize (remaining_time_priority, distância),
-          mas ponderando mais a urgência.
-        - Se estiver vazio: escolher pacote cujo 'custo total' até entregar (dist até pacote + dist pacote->meta urgente)
-          seja menor e que consiga salvar metas próximas do vencimento.
+        - Se tenho carga: entregar para a meta mais urgente (menor remaining), ponderando distância.
+        - Se estou vazio: escolher pacote considerando tempo de entrega até alguma meta viável.
+        - Evita coletar pacotes que certamente não podem ser entregues dentro do prazo.
         """
         avoid_positions = avoid_positions or set()
         sx, sy = self.position
@@ -101,7 +100,7 @@ class DeadlineAwarePlayer(BasePlayer):
         def remaining(goal: Dict) -> int:
             return goal['priority'] - (current_steps - goal['created_at'])
 
-        # Se tenho carga -> escolher meta mais urgente considerando distância
+        # --- Se tenho carga: priorizar metas urgentes ---
         if self.cargo > 0 and world.goals:
             best_goal = None
             best_score = float('inf')
@@ -110,99 +109,44 @@ class DeadlineAwarePlayer(BasePlayer):
                     continue
                 rem = remaining(g)
                 dist = manhattan(g['pos'], [sx, sy])
-                # penalizo rem (quanto menor rem, mais urgente), e some distância
-                # peso rem mais (multiplicar por 2) para priorizar deadlines
-                score = (max(0, rem) * 2) + dist
+                score = (max(0, rem) * 2) + dist  # peso maior na urgência
                 if score < best_score:
                     best_score = score
                     best_goal = g['pos']
             return best_goal
 
-        # Se estou vazio -> escolher pacote com expectativa de entrega
+        # --- Se estou vazio: escolher pacote com melhor expectativa de entrega ---
         if self.cargo == 0 and world.packages:
-            # precompute candidate goals (prefer urgentes)
+            best_p, best_value = None, float('-inf')
             goals = [g for g in world.goals if tuple(g['pos']) not in avoid_positions]
-            if not goals:
-                # se não há metas ainda, só pega o pacote mais próximo
-                candidates = [p for p in world.packages if tuple(p) not in avoid_positions]
-                if candidates:
-                    return min(candidates, key=lambda p: manhattan(p, [sx, sy]))
-                return None
 
-            best_action = None
-            best_value = float('-inf')
             for p in world.packages:
                 if tuple(p) in avoid_positions:
                     continue
                 d_to_p = manhattan(p, [sx, sy])
-                # achar objetivo que faria sentido entregar após pegar p
-                # avaliar cada goal e pegar melhor (melhor para o pacote)
-                best_goal_value_for_p = float('-inf')
+
+                best_goal_value = float('-inf')
                 for g in goals:
                     d_p_to_g = manhattan(g['pos'], p)
-                    rem = remaining(g) - d_to_p - d_p_to_g  # tempo restante ao chegar
-                    # se rem < 0 -> já atrasado ao chegar
-                    # value: evitar atrasos (rem) e custo em passos (d_to_p + d_p_to_g)
-                    # prioridade de salvar metas com rem pequeno
-                    value = (50 if rem >= 0 else 0) - (d_to_p + d_p_to_g) - max(0, -rem) * 2
-                    # penalize more if rem negative (can't save)
-                    if value > best_goal_value_for_p:
-                        best_goal_value_for_p = value
+                    rem = remaining(g) - (d_to_p + d_p_to_g)
+                    value = (50 if rem >= 0 else 0) - (d_to_p + d_p_to_g) - max(0, -rem)
+                    if value > best_goal_value:
+                        best_goal_value = value
 
-                # também computa valor só por coletar (se não houver goals)
-                # combine com distância ao pacote (prefer closer)
-                action_value = best_goal_value_for_p - d_to_p * 0.2
-                if action_value > best_value:
-                    best_value = action_value
-                    best_action = p
+                total_value = best_goal_value - d_to_p * 0.2
+                if total_value > best_value:
+                    best_value = total_value
+                    best_p = p
 
-            # Se o melhor action_value for negativo (muito ruim), ainda assim retorna o pacote mais próximo
-            if best_action is None:
-                candidates = [p for p in world.packages if tuple(p) not in avoid_positions]
-                if candidates:
-                    return min(candidates, key=lambda p: manhattan(p, [sx, sy]))
-                return None
+            if best_p:
+                return best_p
 
-            return best_action
-
-        # fallback: se tenho metas e não estou com carga tentar ir para meta mais urgente
+        # --- fallback: meta mais próxima/urgente ---
         if world.goals:
-            candidates = [g for g in world.goals if tuple(g['pos']) not in avoid_positions]
-            if candidates:
-                g = min(candidates, key=lambda g: (g['priority'] - (current_steps - g['created_at']), manhattan(g['pos'], [sx, sy])))
-                return g['pos']
-
+            return min(world.goals,
+                       key=lambda g: (remaining(g), manhattan(g['pos'], [sx, sy])))['pos']
         return None
 
-    def __init__(self, position, urgent_threshold=10):
-        super().__init__(position)
-        self.urgent_threshold = urgent_threshold
-
-    def escolher_alvo(self, world, current_steps, avoid_positions=None):
-        avoid_positions = avoid_positions or set()
-        sx, sy = self.position
-
-        def remaining(goal: Dict) -> int:
-            return goal['priority'] - (current_steps - goal['created_at'])
-
-        if self.cargo > 0 and world.goals:
-            candidates = [g for g in world.goals if tuple(g['pos']) not in avoid_positions]
-            if candidates:
-                g = min(candidates, key=lambda g: (remaining(g), manhattan(g['pos'], [sx, sy])))
-                return g['pos']
-
-        if self.cargo == 0 and world.packages:
-            candidates = [pkg for pkg in world.packages if tuple(pkg) not in avoid_positions]
-            if candidates:
-                return min(candidates, key=lambda p: manhattan(p, [sx, sy]))
-
-        if world.goals:
-            candidates = [g for g in world.goals if tuple(g['pos']) not in avoid_positions]
-            if candidates:
-                g = min(candidates, key=lambda g: (remaining(g), manhattan(g['pos'], [sx, sy])))
-                return g['pos']
-
-        return None
 '''
 edit:
 Deadline agora calcula uma pontuação combinando urgência e distância (com peso maior para urgência),
@@ -220,11 +164,10 @@ class SmartBatchPlayer(BasePlayer):
     def escolher_alvo(self, world, current_steps, avoid_positions=None):
         """
         Estratégia:
-        - Calcular valor esperado (50 pts - custo em passos - penalidade estimada) para ações:
-          - ir coletar pacote P (e depois entregar para melhor goal)
-          - ir entregar diretamente para uma meta (se já tiver carga)
-        - Se houver metas urgentes (remaining <= urgent_threshold) priorizar entrega/salvamento.
-        - Evitar coletar se coletar significar perder metas urgentes.
+        - Entregar se houver metas urgentes viáveis.
+        - Se ainda houver espaço de carga, decidir coletar pacotes considerando o valor esperado.
+        - Usa max_carry de fato (coleta até encher antes de entregar, se fizer sentido).
+        - Fallback: entregar mesmo metas atrasadas (ainda dá pontos líquidos).
         """
         avoid_positions = avoid_positions or set()
         sx, sy = self.position
@@ -232,146 +175,56 @@ class SmartBatchPlayer(BasePlayer):
         def remaining(g: Dict) -> int:
             return g['priority'] - (current_steps - g['created_at'])
 
-        # lista de metas e pacotes possíveis (sem avoid)
         goals = [g for g in world.goals if tuple(g['pos']) not in avoid_positions]
         packages = [p for p in world.packages if tuple(p) not in avoid_positions]
 
-        # detectar metas urgentes
         urgent_goals = [g for g in goals if remaining(g) <= self.urgent_threshold]
 
-        # helper: estima valor líquido de pegar pacote p e entregar a melhor meta
+        # --- helper: valor líquido de pegar pacote e entregar ---
         def value_pick_and_deliver(p):
-            # d player->p
             d1 = manhattan(p, [sx, sy])
             best_val = float('-inf')
             for g in goals:
-                d2 = manhattan(g['pos'], p)  # p -> goal
+                d2 = manhattan(g['pos'], p)
                 rem_after = remaining(g) - (d1 + d2)
-                # se rem_after < 0, chegaremos atrasados
-                value = (50 if rem_after >= 0 else 0) - (d1 + d2) - max(0, -rem_after)*2
-                # pequeno bônus se goal for muito próximo (reduz passos)
-                value -= d1 * 0.1
+                value = 50 - (d1 + d2) - max(0, -rem_after)
                 if value > best_val:
                     best_val = value
-            # se não há goals -> valor só de coletar (pequeno negativo por passos)
-            if not goals:
-                best_val = -d1
-            return best_val
+            return best_val if goals else -d1
 
-        # helper: valor de ir direto para meta (se estiver com carga)
-        def value_deliver_direct(gpos):
-            d = manhattan(gpos, [sx, sy])
-            # estimate remaining for that goal
-            g = None
-            for gg in goals:
-                if gg['pos'] == gpos:
-                    g = gg
-                    break
-            rem_after = remaining(g) - d if g else 0
-            value = (50 if rem_after >= 0 else 0) - d - max(0, -rem_after)*2
-            return value
+        # --- helper: valor líquido de entregar direto ---
+        def value_deliver_direct(g):
+            d = manhattan(g['pos'], [sx, sy])
+            rem_after = remaining(g) - d
+            return 50 - d - max(0, -rem_after)
 
-        # Se houver metas urgentes:
+        # --- Se houver metas urgentes ---
         if urgent_goals:
-            # Se tivermos carga → entregar a meta urgente mais 'salvável' por distância
             if self.cargo > 0:
-                best = min(urgent_goals, key=lambda g: (manhattan(g['pos'], [sx, sy]), remaining(g)))
-                return best['pos']
-            else:
-                # sem carga: buscar o pacote que mais ajuda salvar a meta urgente (min valor de d to urgent goal)
-                best_p = None
-                best_metric = float('inf')
-                for p in packages:
-                    # distância p -> nearest urgent goal
-                    nearest_urgent_dist = min(manhattan(p, ug['pos']) for ug in urgent_goals)
-                    metric = manhattan(p, [sx, sy]) + nearest_urgent_dist
-                    if metric < best_metric:
-                        best_metric = metric
-                        best_p = p
-                if best_p:
-                    return best_p
+                return min(urgent_goals, key=lambda g: (manhattan(g['pos'], [sx, sy]), remaining(g)))['pos']
+            if packages:
+                # pegar pacote que mais ajuda salvar uma meta urgente
+                return min(packages, key=lambda p: min(manhattan(p, ug['pos']) for ug in urgent_goals))
 
-        # se temos carga e não há urgentes, decidir entregar (escolha por melhor value)
+        # --- Se tenho carga e não há urgentes: avaliar entregar ---
         if self.cargo > 0 and goals:
-            best_goal = None
-            best_val = float('-inf')
-            for g in goals:
-                v = value_deliver_direct(g['pos'])
-                if v > best_val:
-                    best_val = v
-                    best_goal = g['pos']
-            return best_goal
+            return max(goals, key=lambda g: value_deliver_direct(g))['pos']
 
-        # Se ainda não atingiu capacidade, avaliar pegar pacotes por valor esperado
+        # --- Se ainda cabe carga: avaliar coletar ---
         if self.cargo < self.max_carry and packages:
-            best_p = None
-            best_val = float('-inf')
-            for p in packages:
-                v = value_pick_and_deliver(p)
-                if v > best_val:
-                    best_val = v
-                    best_p = p
-            # Se o melhor valor for muito negativo -> talvez é melhor entregar (se tiver carga) ou idle
-            if best_val < -50 and self.cargo > 0:
-                # evitar pegar pacote que cause prejuízo enorme
-                # neste caso, priorize entrega
-                if goals:
-                    return min(goals, key=lambda g: manhattan(g['pos'], [sx, sy]))['pos']
-            if best_p is not None:
-                return best_p
+            best_p = max(packages, key=lambda p: value_pick_and_deliver(p))
+            return best_p
 
-        # Fallback: se nada disso, buscar o pacote mais próximo ou meta mais próxima
-        if packages:
-            return min(packages, key=lambda p: manhattan(p, [sx, sy]))
-        if goals:
+        # --- fallback: entregar mesmo atrasadas (ainda dá pontos líquidos) ---
+        if goals and self.cargo > 0:
             return min(goals, key=lambda g: manhattan(g['pos'], [sx, sy]))['pos']
 
-        return None
-
-    def __init__(self, position, max_carry=2, urgent_threshold=8):
-        super().__init__(position)
-        self.max_carry = max_carry
-        self.urgent_threshold = urgent_threshold
-
-    def escolher_alvo(self, world, current_steps, avoid_positions=None):
-        avoid_positions = avoid_positions or set()
-        sx, sy = self.position
-
-        def remaining(g: Dict) -> int:
-            return g['priority'] - (current_steps - g['created_at'])
-
-        urgent_goals = [g for g in world.goals if remaining(g) <= self.urgent_threshold
-                and tuple(g['pos']) not in avoid_positions]
-
-        # Se houver metas urgentes, sempre prioriza entregar (mesmo sem carga)
-        if urgent_goals:
-            if self.cargo > 0:
-                g = min(urgent_goals, key=lambda g: (remaining(g), manhattan(g['pos'], [sx, sy])))
-                return g['pos']
-            else:
-                # vai direto buscar pacote mais próximo do goal urgente
-                g = min(urgent_goals, key=lambda g: remaining(g))
-                return min(world.packages, key=lambda p: manhattan(p, g['pos']))
-        ''' antes o smart coletava pacore mesmo se ja tivesse goals urgentes agr se tiver
-        um goal urgente ele vai ignorar pegar mais ate entregar'''
-
-
-        if self.cargo < self.max_carry and world.packages and not urgent_goals:
-            candidates = [p for p in world.packages if tuple(p) not in avoid_positions]
-            if candidates:
-                return min(candidates, key=lambda p: manhattan(p, [sx, sy]))
-
-        if world.goals and self.cargo > 0:
-            candidates = [g for g in world.goals if tuple(g['pos']) not in avoid_positions]
-            if candidates:
-                g = min(candidates, key=lambda g: (remaining(g), manhattan(g['pos'], [sx, sy])))
-                return g['pos']
-
-        candidates = [p for p in world.packages if tuple(p) not in avoid_positions]
-        if candidates:
-            return min(candidates, key=lambda p: manhattan(p, [sx, sy]))
+        # último recurso: andar até pacote mais próximo
+        if packages:
+            return min(packages, key=lambda p: manhattan(p, [sx, sy]))
 
         return None
+
 '''
 edit:
 Em vez de regras fixas, o Smart estima o valor líquido de cada ação (50 pts por entrega menos custo em passos e penalidades potenciais).
